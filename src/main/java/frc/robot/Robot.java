@@ -6,10 +6,13 @@ package frc.robot;
 
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.DutyCycleOut;
+import com.ctre.phoenix6.controls.MusicTone;
+import com.ctre.phoenix6.controls.NeutralOut;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 
 import edu.wpi.first.wpilibj.TimedRobot;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.Commands;
@@ -24,8 +27,9 @@ public class Robot extends TimedRobot {
 
   private TalonFX talonfx;
   private TalonFXConfiguration config;
-  private DutyCycleOut voltageOut;
-  private double time;
+  private DutyCycleOut dutyCycleOut;
+  private MusicTone musicTone;
+  private NeutralOut neutralOut;
 
   private Command runCommand;
 
@@ -34,30 +38,41 @@ public class Robot extends TimedRobot {
     talonfx = new TalonFX(1);
     config = new TalonFXConfiguration();
     config.MotorOutput.NeutralMode = NeutralModeValue.Brake;
-    config.CurrentLimits.SupplyCurrentLimit = 40.0;
+    config.CurrentLimits.SupplyCurrentLimit = 150.0;
     config.CurrentLimits.SupplyCurrentLimitEnable = true;
     talonfx.getConfigurator().apply(config);
-    voltageOut = new DutyCycleOut(0.0);
-    time = 0.25;
+    dutyCycleOut = new DutyCycleOut(0.0);
+    musicTone = new MusicTone(2000);
+    neutralOut = new NeutralOut();
 
-    runCommand = Commands.repeatingSequence(
-      Commands.waitSeconds(time),
-      Commands.runOnce(() -> talonfx.setControl(voltageOut.withOutput(1))),
-      Commands.waitSeconds(time),
-      Commands.runOnce(() -> talonfx.setControl(voltageOut.withOutput(-1)))
-    );
+    runCommand = Commands.runOnce(
+        () -> talonfx.setControl(dutyCycleOut.withOutput(1)))
+        .andThen(Commands.waitSeconds(5))
+        .andThen(
+            Commands.run(
+              () -> {
+                if (talonfx.getDeviceTemp().getValueAsDouble() <= 50) {
+                  talonfx.setControl(musicTone);
+                } else {
+                  talonfx.setControl(neutralOut);
+                }}));
   }
 
   @Override
-  public void robotPeriodic() {}
-
-  @Override
-  public void autonomousInit() {}
-
-  @Override
-  public void autonomousPeriodic() {
-    CommandScheduler.getInstance().schedule(runCommand);
+  public void robotPeriodic() {
+    CommandScheduler.getInstance().run();
+    SmartDashboard.putNumber("current", Math.abs(talonfx.getSupplyCurrent().getValueAsDouble()));
+    SmartDashboard.putNumber("temperature", talonfx.getDeviceTemp().getValueAsDouble());
   }
+
+  @Override
+  public void autonomousInit() {
+    CommandScheduler.getInstance().cancelAll();
+    runCommand.schedule();
+  }
+
+  @Override
+  public void autonomousPeriodic() {}
 
   @Override
   public void teleopInit() {}
