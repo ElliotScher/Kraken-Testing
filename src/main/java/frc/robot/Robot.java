@@ -38,7 +38,7 @@ public class Robot extends TimedRobot {
     talonfx = new TalonFX(1);
     config = new TalonFXConfiguration();
     config.MotorOutput.NeutralMode = NeutralModeValue.Brake;
-    config.CurrentLimits.SupplyCurrentLimit = 150.0;
+    config.CurrentLimits.SupplyCurrentLimit = 80.0;
     config.CurrentLimits.SupplyCurrentLimitEnable = true;
     talonfx.getConfigurator().apply(config);
     dutyCycleOut = new DutyCycleOut(0.0);
